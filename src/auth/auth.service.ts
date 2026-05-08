@@ -11,7 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
-import { MoreThan, Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 import { Hotel } from '../hotels/entities/hotel.entity';
 import { UserRole } from '../common/enums/role.enum';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -219,7 +219,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
     await this.otps.update(
-      { userId: user.id, purpose, usedAt: null },
+      { userId: user.id, purpose, usedAt: IsNull() },
       { usedAt: new Date() },
     );
 
@@ -244,7 +244,7 @@ export class AuthService {
       where: {
         userId: user.id,
         purpose,
-        usedAt: null,
+        usedAt: IsNull(),
         expiresAt: MoreThan(new Date()),
       },
       order: { createdAt: 'DESC' },
