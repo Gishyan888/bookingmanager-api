@@ -11,6 +11,7 @@ loadEnv({ path: '.env.local' });
 loadEnv({ path: '.env' });
 
 const port = parseInt(process.env.DB_PORT ?? '3306', 10);
+const isTsRuntime = __filename.endsWith('.ts');
 
 export const typeOrmDataSourceOptions: DataSourceOptions = {
   type: 'mysql',
@@ -20,7 +21,7 @@ export const typeOrmDataSourceOptions: DataSourceOptions = {
   password: process.env.DB_PASSWORD ?? 'bookingmanager',
   database: process.env.DB_DATABASE ?? 'bookingmanager',
   entities: [User, Hotel, Room, Customer, Booking, Notification],
-  migrations: ['src/migrations/*.ts', 'dist/migrations/*.js'],
+  migrations: isTsRuntime ? ['src/migrations/*.ts'] : ['dist/migrations/*.js'],
   synchronize: false,
 };
 
