@@ -226,11 +226,8 @@ export class NotificationsService {
     actorUserId: string,
   ): Promise<string[]> {
     const ids = new Set<string>();
-    const admins = await this.users.find({
-      where: { role: UserRole.ADMIN, isActive: true },
-      select: ['id'],
-    });
-    admins.forEach((a) => ids.add(a.id));
+    // Booking events are operational alerts for owner/manager only.
+    // Admins do not need these notifications.
     if (ownerId) ids.add(ownerId);
     if (hotelId) {
       const managers = await this.users.find({

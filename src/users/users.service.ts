@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -13,7 +14,9 @@ import {
 } from '../common/dto/pagination.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UserRole } from '../common/enums/role.enum';
+import { Hotel } from '../hotels/entities/hotel.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 
@@ -22,6 +25,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    @InjectRepository(Hotel)
+    private readonly hotels: Repository<Hotel>,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -110,6 +115,14 @@ export class UsersService {
     return saved;
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
+    const user = await this.findOne(userId);
+    if (dto.name !== undefined) user.name = dto.name.trim();
+    if (dto.phone !== undefined) user.phone = dto.phone ?? null;
+    if (dto.password) user.password = await bcrypt.hash(dto.password, 10);
+    return this.users.save(user);
+  }
+
   async remove(id: string): Promise<{ id: string }> {
     const result = await this.users.delete(id);
     if (!result.affected) throw new NotFoundException('User not found');
@@ -159,5 +172,75 @@ export class UsersService {
 
     const [data, total] = await qb.getManyAndCount();
     return buildPaginatedResult(data, total, page, limit);
+  }
+
+  async createManagerForOwner(
+    ownerId: string,
+    dto: CreateUserDto,
+  ): Promise<User> {
+    if (dto.role !== UserRole.MANAGER) {
+      throw new ForbiddenException('Owners can only create manager accounts');
+    }
+    if (!dto.assignedHotelId) {
+      throw new ForbiddenException('Manager must be assigned to a hotel');
+    }
+    await this.assertOwnerHasHotel(ownerId, dto.assignedHotelId);
+    return this.create({ ...dto, isActive: dto.isActive ?? true });
+  }
+
+  async updateManagerForOwner(
+    ownerId: string,
+    managerId: string,
+    dto: UpdateUserDto,
+  ): Promise<User> {
+    const manager = await this.findOwnerManagerOrFail(ownerId, managerId);
+    if (dto.role && dto.role !== UserRole.MANAGER) {
+      throw new ForbiddenException('Owners can only manage manager accounts');
+    }
+    if (dto.assignedHotelId !== undefined) {
+      if (!dto.assignedHotelId) {
+        throw new ForbiddenException('Manager must be assigned to a hotel');
+      }
+      await this.assertOwnerHasHotel(ownerId, dto.assignedHotelId);
+    }
+    return this.update(manager.id, { ...dto, role: UserRole.MANAGER });
+  }
+
+  async removeManagerForOwner(ownerId: string, managerId: string) {
+    const manager = await this.findOwnerManagerOrFail(ownerId, managerId);
+    return this.remove(manager.id);
+  }
+
+  async setManagerActiveForOwner(
+    ownerId: string,
+    managerId: string,
+    isActive: boolean,
+  ): Promise<User> {
+    const manager = await this.findOwnerManagerOrFail(ownerId, managerId);
+    return this.setActive(manager.id, isActive);
+  }
+
+  private async assertOwnerHasHotel(ownerId: string, hotelId: string) {
+    const hotel = await this.hotels.findOne({
+      where: { id: hotelId, ownerId },
+      select: ['id'],
+    });
+    if (!hotel) {
+      throw new ForbiddenException('Hotel does not belong to current owner');
+    }
+  }
+
+  private async findOwnerManagerOrFail(ownerId: string, managerId: string) {
+    const manager = await this.users
+      .createQueryBuilder('user')
+      .innerJoin('hotels', 'h', 'h.id = user.assignedHotelId')
+      .where('user.id = :managerId', { managerId })
+      .andWhere('user.role = :role', { role: UserRole.MANAGER })
+      .andWhere('h.ownerId = :ownerId', { ownerId })
+      .getOne();
+    if (!manager) {
+      throw new NotFoundException('Manager not found');
+    }
+    return manager;
   }
 }

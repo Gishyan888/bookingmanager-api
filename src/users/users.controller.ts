@@ -19,6 +19,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { OwnersFilterDto } from './dto/owners-filter.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
@@ -27,6 +28,18 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Current user profile' })
+  me(@CurrentUser() user: AuthUser) {
+    return this.users.findOne(user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.users.updateProfile(user.id, dto);
+  }
 
   // -------- Admin: manage owners --------
   @Roles(UserRole.ADMIN)
@@ -45,6 +58,54 @@ export class UsersController {
     @Query() pagination: PaginationDto,
   ) {
     return this.users.findManagersForOwner(user.id, pagination);
+  }
+
+  @Roles(UserRole.OWNER)
+  @Post('my-managers')
+  @ApiOperation({ summary: 'Owner: create manager for own hotel' })
+  createMyManager(@CurrentUser() user: AuthUser, @Body() dto: CreateUserDto) {
+    return this.users.createManagerForOwner(user.id, dto);
+  }
+
+  @Roles(UserRole.OWNER)
+  @Patch('my-managers/:id')
+  @ApiOperation({ summary: 'Owner: update own manager' })
+  updateMyManager(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.users.updateManagerForOwner(user.id, id, dto);
+  }
+
+  @Roles(UserRole.OWNER)
+  @Patch('my-managers/:id/activate')
+  @ApiOperation({ summary: 'Owner: activate own manager' })
+  activateMyManager(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.users.setManagerActiveForOwner(user.id, id, true);
+  }
+
+  @Roles(UserRole.OWNER)
+  @Patch('my-managers/:id/deactivate')
+  @ApiOperation({ summary: 'Owner: deactivate own manager' })
+  deactivateMyManager(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.users.setManagerActiveForOwner(user.id, id, false);
+  }
+
+  @Roles(UserRole.OWNER)
+  @Delete('my-managers/:id')
+  @ApiOperation({ summary: 'Owner: remove own manager' })
+  removeMyManager(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.users.removeManagerForOwner(user.id, id);
   }
 
   // -------- CRUD (Admin only by default) --------
