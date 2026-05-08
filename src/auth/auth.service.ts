@@ -93,7 +93,7 @@ export class AuthService {
     return {
       pending: true,
       message:
-        'Account created. Verify your email with OTP. An administrator must activate your account before sign in.',
+        'Account created. Verify your email with OTP to activate your account.',
       otpSent: true,
       user: {
         id: saved.id,
@@ -145,6 +145,10 @@ export class AuthService {
     const user = await this.users.findOne({ where: { email } });
     if (!user) throw new NotFoundException('User not found');
     await this.consumeOtp(user, 'verify_email', dto.otp);
+    if (!user.isActive) {
+      user.isActive = true;
+      await this.users.save(user);
+    }
     return { verified: true };
   }
 
