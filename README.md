@@ -89,7 +89,26 @@ Enums:
 - `BookingStatus`: `pending`, `confirmed`, `checked_in`, `checked_out`, `cancelled`
 
 Tables are auto-created via `synchronize: true` in development. For production,
-set `NODE_ENV=production` and use TypeORM migrations.
+set `NODE_ENV=production` and run TypeORM migrations (`npm run migration:run`).
+
+## Production deploy (cPanel)
+
+Use this order on first deploy and every update:
+
+```bash
+npm install
+npm run build
+npm run migration:run
+npm run start:prod
+```
+
+Notes:
+
+- Keep `NODE_ENV=production` in `.env` on cPanel.
+- `migration:run` is safe to run repeatedly; only pending migrations are applied.
+- If you change entities later, generate a new migration before deploy:
+  `npm run migration:generate --name=DescribeChange`.
+- Full step-by-step cPanel instructions: see `DEPLOY.md`.
 
 ## API surface (high-level)
 
@@ -144,6 +163,8 @@ from the same UI ("Download" button).
 npm run start:dev   # dev with hot reload
 npm run build       # tsc -> dist/
 npm run start:prod  # production server (requires npm run build)
+npm run migration:run
+npm run migration:revert
 npm run lint        # eslint --fix
 npm test            # unit tests (jest)
 ```
