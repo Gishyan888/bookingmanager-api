@@ -1,6 +1,5 @@
 import { config as loadEnv } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
-import { AuthOtp } from '../auth/entities/auth-otp.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Hotel } from '../hotels/entities/hotel.entity';
@@ -20,7 +19,7 @@ export const typeOrmDataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME ?? 'bookingmanager',
   password: process.env.DB_PASSWORD ?? 'bookingmanager',
   database: process.env.DB_DATABASE ?? 'bookingmanager',
-  entities: [User, Hotel, Room, Customer, Booking, AuthOtp, Notification],
+  entities: [User, Hotel, Room, Customer, Booking, Notification],
   migrations: ['src/migrations/*.ts', 'dist/migrations/*.js'],
   synchronize: false,
 };
