@@ -8,12 +8,13 @@ import { Hotel } from '../hotels/entities/hotel.entity';
 import { User } from '../users/entities/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthOtp } from './entities/auth-otp.entity';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    TypeOrmModule.forFeature([User, Hotel]),
+    TypeOrmModule.forFeature([User, Hotel, AuthOtp]),
     NotificationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -1,19 +1,26 @@
 import {
   ConflictException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { Hotel } from '../hotels/entities/hotel.entity';
 import { UserRole } from '../common/enums/role.enum';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AuthOtp, AuthOtpPurpose } from './entities/auth-otp.entity';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
+import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
+import { ForgotPasswordRequestDto } from './dto/forgot-password-request.dto';
+import { ForgotPasswordConfirmDto } from './dto/forgot-password-confirm.dto';
 
 export interface AuthResponse {
   token: string;
@@ -29,6 +36,7 @@ export interface AuthResponse {
 export interface RegisterPendingResponse {
   pending: true;
   message: string;
+  otpSent: boolean;
   user: {
     id: string;
     name: string;
@@ -44,6 +52,8 @@ export class AuthService {
     private readonly users: Repository<User>,
     @InjectRepository(Hotel)
     private readonly hotels: Repository<Hotel>,
+    @InjectRepository(AuthOtp)
+    private readonly otps: Repository<AuthOtp>,
     private readonly jwt: JwtService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -68,6 +78,8 @@ export class AuthService {
       isActive: false,
     });
     const saved = await this.users.save(user);
+    const { otp } = await this.issueOtp(saved, 'verify_email');
+    this.logOtp(saved.email, 'verify_email', otp);
     void this.notifications.notifyAdminsNewOwner(
       saved.name,
       saved.email,
@@ -76,7 +88,8 @@ export class AuthService {
     return {
       pending: true,
       message:
-        'Account created. An administrator must activate it before you can sign in.',
+        'Account created. Verify your email with OTP. An administrator must activate your account before sign in.',
+      otpSent: true,
       user: {
         id: saved.id,
         name: saved.name,
@@ -122,6 +135,51 @@ export class AuthService {
     return this.buildResponse(user);
   }
 
+  async verifyEmailOtp(dto: VerifyEmailOtpDto): Promise<{ verified: true }> {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.consumeOtp(user, 'verify_email', dto.otp);
+    return { verified: true };
+  }
+
+  async resendEmailOtp(
+    dto: ResendEmailOtpDto,
+  ): Promise<{ sent: true; expiresInSeconds: number }> {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('User not found');
+    const { otp, ttlSeconds } = await this.issueOtp(user, 'verify_email');
+    this.logOtp(user.email, 'verify_email', otp);
+    return { sent: true, expiresInSeconds: ttlSeconds };
+  }
+
+  async requestPasswordReset(
+    dto: ForgotPasswordRequestDto,
+  ): Promise<{ sent: true; expiresInSeconds: number }> {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) {
+      // Prevent user enumeration.
+      return { sent: true, expiresInSeconds: 600 };
+    }
+    const { otp, ttlSeconds } = await this.issueOtp(user, 'forgot_password');
+    this.logOtp(user.email, 'forgot_password', otp);
+    return { sent: true, expiresInSeconds: ttlSeconds };
+  }
+
+  async confirmPasswordReset(
+    dto: ForgotPasswordConfirmDto,
+  ): Promise<{ reset: true }> {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.consumeOtp(user, 'forgot_password', dto.otp);
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.users.save(user);
+    return { reset: true };
+  }
+
   private buildResponse(user: User): AuthResponse {
     const token = this.jwt.sign({
       sub: user.id,
@@ -138,5 +196,62 @@ export class AuthService {
         assignedHotelId: user.assignedHotelId,
       },
     };
+  }
+
+  private generateOtpCode(): string {
+    return `${Math.floor(100000 + Math.random() * 900000)}`;
+  }
+
+  private async issueOtp(
+    user: User,
+    purpose: AuthOtpPurpose,
+  ): Promise<{ otp: string; ttlSeconds: number }> {
+    const ttlSeconds = 10 * 60;
+    const otp = this.generateOtpCode();
+    const codeHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+    await this.otps.update(
+      { userId: user.id, purpose, usedAt: null },
+      { usedAt: new Date() },
+    );
+
+    const row = this.otps.create({
+      userId: user.id,
+      email: user.email,
+      purpose,
+      codeHash,
+      expiresAt,
+      usedAt: null,
+    });
+    await this.otps.save(row);
+    return { otp, ttlSeconds };
+  }
+
+  private async consumeOtp(
+    user: User,
+    purpose: AuthOtpPurpose,
+    otp: string,
+  ): Promise<void> {
+    const active = await this.otps.findOne({
+      where: {
+        userId: user.id,
+        purpose,
+        usedAt: null,
+        expiresAt: MoreThan(new Date()),
+      },
+      order: { createdAt: 'DESC' },
+    });
+    if (!active) throw new BadRequestException('OTP is invalid or expired');
+    const ok = await bcrypt.compare(otp, active.codeHash);
+    if (!ok) throw new BadRequestException('OTP is invalid or expired');
+    active.usedAt = new Date();
+    await this.otps.save(active);
+  }
+
+  private logOtp(email: string, purpose: AuthOtpPurpose, otp: string): void {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH_OTP] ${purpose} ${email} -> ${otp}`);
+    }
   }
 }

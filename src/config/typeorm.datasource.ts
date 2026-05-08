@@ -3,6 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Hotel } from '../hotels/entities/hotel.entity';
+import { AuthOtp } from '../auth/entities/auth-otp.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Room } from '../rooms/entities/room.entity';
 import { User } from '../users/entities/user.entity';
@@ -20,7 +21,7 @@ export const typeOrmDataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME ?? 'bookingmanager',
   password: process.env.DB_PASSWORD ?? 'bookingmanager',
   database: process.env.DB_DATABASE ?? 'bookingmanager',
-  entities: [User, Hotel, Room, Customer, Booking, Notification],
+  entities: [User, Hotel, Room, Customer, Booking, Notification, AuthOtp],
   migrations: isTsRuntime ? ['src/migrations/*.ts'] : ['dist/migrations/*.js'],
   synchronize: false,
 };
