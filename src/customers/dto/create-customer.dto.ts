@@ -33,4 +33,9 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiPropertyOptional({ description: 'Customer description / notes' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

@@ -51,7 +51,7 @@ export class CustomersService {
       email: dto.email ?? null,
       phone: dto.phone ?? null,
       idDocument: dto.idDocument ?? null,
-      address: dto.address ?? null,
+      address: dto.description ?? dto.address ?? null,
       ownerId,
     });
     return this.customers.save(customer);
@@ -141,7 +141,11 @@ export class CustomersService {
     if (dto.phone !== undefined) customer.phone = dto.phone ?? null;
     if (dto.idDocument !== undefined)
       customer.idDocument = dto.idDocument ?? null;
-    if (dto.address !== undefined) customer.address = dto.address ?? null;
+    if (dto.description !== undefined) {
+      customer.address = dto.description ?? null;
+    } else if (dto.address !== undefined) {
+      customer.address = dto.address ?? null;
+    }
     return this.customers.save(customer);
   }
 
