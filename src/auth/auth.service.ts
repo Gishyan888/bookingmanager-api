@@ -11,7 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
-import { IsNull, MoreThan, Repository } from 'typeorm';
+import { IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { Hotel } from '../hotels/entities/hotel.entity';
 import { UserRole } from '../common/enums/role.enum';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -117,9 +117,23 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     if (!user.isActive) {
-      throw new ForbiddenException(
-        'Your account is inactive. An administrator must activate it.',
-      );
+      // Fail-safe: if email OTP was already verified, auto-activate account.
+      const verifiedOtp = await this.otps.findOne({
+        where: {
+          userId: user.id,
+          purpose: 'verify_email',
+          usedAt: Not(IsNull()),
+        },
+        order: { createdAt: 'DESC' },
+      });
+      if (verifiedOtp) {
+        user.isActive = true;
+        await this.users.save(user);
+      } else {
+        throw new ForbiddenException(
+          'Your account is inactive. Verify email OTP first.',
+        );
+      }
     }
 
     // Cascading: managers can't sign in if their owner is deactivated.
