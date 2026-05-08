@@ -3,12 +3,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
+import * as nodemailer from 'nodemailer';
 import { MoreThan, Repository } from 'typeorm';
 import { Hotel } from '../hotels/entities/hotel.entity';
 import { UserRole } from '../common/enums/role.enum';
@@ -47,6 +49,8 @@ export interface RegisterPendingResponse {
 
 @Injectable()
 export class AuthService {
+  private mailTransporter: nodemailer.Transporter | null = null;
+
   constructor(
     @InjectRepository(User)
     private readonly users: Repository<User>,
@@ -79,6 +83,7 @@ export class AuthService {
     });
     const saved = await this.users.save(user);
     const { otp } = await this.issueOtp(saved, 'verify_email');
+    await this.sendOtpEmail(saved.email, otp, 'verify_email');
     this.logOtp(saved.email, 'verify_email', otp);
     void this.notifications.notifyAdminsNewOwner(
       saved.name,
@@ -150,6 +155,7 @@ export class AuthService {
     const user = await this.users.findOne({ where: { email } });
     if (!user) throw new NotFoundException('User not found');
     const { otp, ttlSeconds } = await this.issueOtp(user, 'verify_email');
+    await this.sendOtpEmail(user.email, otp, 'verify_email');
     this.logOtp(user.email, 'verify_email', otp);
     return { sent: true, expiresInSeconds: ttlSeconds };
   }
@@ -164,6 +170,7 @@ export class AuthService {
       return { sent: true, expiresInSeconds: 600 };
     }
     const { otp, ttlSeconds } = await this.issueOtp(user, 'forgot_password');
+    await this.sendOtpEmail(user.email, otp, 'forgot_password');
     this.logOtp(user.email, 'forgot_password', otp);
     return { sent: true, expiresInSeconds: ttlSeconds };
   }
@@ -252,6 +259,65 @@ export class AuthService {
   private logOtp(email: string, purpose: AuthOtpPurpose, otp: string): void {
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[AUTH_OTP] ${purpose} ${email} -> ${otp}`);
+    }
+  }
+
+  private getMailer(): nodemailer.Transporter {
+    if (this.mailTransporter) return this.mailTransporter;
+    const host = process.env.MAIL_HOST;
+    const port = Number(process.env.MAIL_PORT || '587');
+    const user = process.env.MAIL_USER;
+    const pass = process.env.MAIL_PASS;
+
+    if (!host || !port || !user || !pass) {
+      throw new InternalServerErrorException(
+        'Mail is not configured. Missing MAIL_HOST/MAIL_PORT/MAIL_USER/MAIL_PASS',
+      );
+    }
+
+    this.mailTransporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      requireTLS: port !== 465,
+    });
+    return this.mailTransporter;
+  }
+
+  private async sendOtpEmail(
+    to: string,
+    otp: string,
+    purpose: AuthOtpPurpose,
+  ): Promise<void> {
+    const from = process.env.MAIL_FROM || process.env.MAIL_USER || '';
+    if (!from) {
+      throw new InternalServerErrorException(
+        'Mail is not configured. Missing MAIL_FROM or MAIL_USER',
+      );
+    }
+
+    const subject =
+      purpose === 'verify_email'
+        ? 'BookingManager email verification code'
+        : 'BookingManager password reset code';
+    const action =
+      purpose === 'verify_email' ? 'verify your email' : 'reset your password';
+
+    try {
+      const mailer = this.getMailer();
+      await mailer.sendMail({
+        from,
+        to,
+        subject,
+        text: `Your OTP code is ${otp}. It expires in 10 minutes. Use this code to ${action}.`,
+        html: `<p>Your OTP code is <b>${otp}</b>.</p><p>It expires in <b>10 minutes</b>.</p><p>Use this code to ${action}.</p>`,
+      });
+    } catch (err) {
+      console.error('[MAIL_SEND_FAILED]', err);
+      throw new InternalServerErrorException(
+        'Could not send OTP email. Check SMTP settings and server egress rules.',
+      );
     }
   }
 }
