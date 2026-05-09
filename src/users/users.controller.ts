@@ -19,6 +19,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { OwnersFilterDto } from './dto/owners-filter.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
@@ -39,6 +40,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
     return this.users.updateProfile(user.id, dto);
+  }
+
+  @Patch('me/preferences')
+  @ApiOperation({ summary: 'Update current user preferences' })
+  updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    return this.users.updatePreferences(user.id, dto);
   }
 
   // -------- Admin: manage owners --------

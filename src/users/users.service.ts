@@ -15,6 +15,7 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { UserRole } from '../common/enums/role.enum';
 import { Hotel } from '../hotels/entities/hotel.entity';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -120,6 +121,20 @@ export class UsersService {
     if (dto.name !== undefined) user.name = dto.name.trim();
     if (dto.phone !== undefined) user.phone = dto.phone ?? null;
     if (dto.password) user.password = await bcrypt.hash(dto.password, 10);
+    if (dto.preferredLanguage !== undefined) {
+      user.preferredLanguage = dto.preferredLanguage;
+    }
+    if (dto.preferredTheme !== undefined) {
+      user.preferredTheme = dto.preferredTheme;
+    }
+    return this.users.save(user);
+  }
+
+  async updatePreferences(
+    userId: string,
+    dto: UpdatePreferencesDto,
+  ): Promise<User> {
+    const user = await this.findOne(userId);
     if (dto.preferredLanguage !== undefined) {
       user.preferredLanguage = dto.preferredLanguage;
     }
