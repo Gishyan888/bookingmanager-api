@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { AsciiEmail } from '../../common/decorators/ascii-email.decorator';
 import { UserRole } from '../../common/enums/role.enum';
 
 export class CreateUserDto {
@@ -20,6 +21,7 @@ export class CreateUserDto {
 
   @ApiProperty({ example: 'owner@yourdomain.com' })
   @IsEmail()
+  @AsciiEmail()
   email: string;
 
   @ApiProperty({ minLength: 6 })

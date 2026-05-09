@@ -14,6 +14,7 @@ export function typeOrmConfigFactory(
     username: config.get<string>('DB_USERNAME', 'bookingmanager'),
     password: config.get<string>('DB_PASSWORD', 'bookingmanager'),
     database: config.get<string>('DB_DATABASE', 'bookingmanager'),
+    charset: 'utf8mb4',
     autoLoadEntities: true,
     synchronize: nodeEnv !== 'production',
     logging: nodeEnv === 'development',

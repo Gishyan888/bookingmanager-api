@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { AsciiEmail } from '../../common/decorators/ascii-email.decorator';
 
 export class CreateCustomerDto {
   @ApiProperty({ example: 'Jane Guest' })
@@ -17,6 +18,7 @@ export class CreateCustomerDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
+  @AsciiEmail()
   email?: string;
 
   @ApiPropertyOptional({ example: '+37499123456' })

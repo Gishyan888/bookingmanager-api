@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { AsciiEmail } from '../../common/decorators/ascii-email.decorator';
 import { UserRole } from '../../common/enums/role.enum';
 
 export class RegisterDto {
@@ -18,6 +19,7 @@ export class RegisterDto {
 
   @ApiProperty({ example: 'owner@yourdomain.com' })
   @IsEmail()
+  @AsciiEmail()
   email: string;
 
   @ApiProperty({ minLength: 6, example: 'secret123' })

@@ -23,6 +23,11 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { CreateRoomDto } from './dto/create-room.dto';
+import {
+  RoomAvailabilityRangeQueryDto,
+  RoomCheckInTimesQueryDto,
+  RoomCheckOutTimesQueryDto,
+} from './dto/room-availability-query.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomsService } from './rooms.service';
 
@@ -48,6 +53,49 @@ export class RoomsController {
     @Query('hotelId') hotelId?: string,
   ) {
     return this.rooms.findAll(pagination, user, hotelId);
+  }
+
+  @Get(':id/availability/check-in-times')
+  @ApiOperation({
+    summary: 'Available check-in times (30-minute steps) for a calendar day',
+  })
+  getCheckInTimes(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: RoomCheckInTimesQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.rooms.getCheckInTimes(
+      id,
+      query.date,
+      user,
+      query.onlyFuture !== false,
+    );
+  }
+
+  @Get(':id/availability/check-out-times')
+  @ApiOperation({
+    summary:
+      'Available check-out datetimes (30-minute steps) after a fixed check-in',
+  })
+  getCheckOutTimes(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: RoomCheckOutTimesQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.rooms.getCheckOutTimes(id, query.checkIn, user);
+  }
+
+  @Get(':id/availability')
+  @ApiOperation({
+    summary:
+      'List busy periods and dates that fit the default 14:00 → next-day 12:00 stay',
+  })
+  getRoomAvailability(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: RoomAvailabilityRangeQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.rooms.getAvailabilityCalendar(id, query.from, query.to, user);
   }
 
   @Get(':id')

@@ -21,6 +21,7 @@ export const typeOrmDataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME ?? 'bookingmanager',
   password: process.env.DB_PASSWORD ?? 'bookingmanager',
   database: process.env.DB_DATABASE ?? 'bookingmanager',
+  charset: 'utf8mb4',
   entities: [User, Hotel, Room, Customer, Booking, Notification, AuthOtp],
   migrations: isTsRuntime ? ['src/migrations/*.ts'] : ['dist/migrations/*.js'],
   synchronize: false,
