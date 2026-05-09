@@ -4,8 +4,34 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SeedService } from './seed/seed.service';
 
+function parseCorsOrigins(): string[] | true {
+  const raw = process.env.CORS_ORIGINS?.trim();
+  if (!raw) return true;
+  const list = raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return list.length ? list : true;
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
+
+  // Explicit CORS avoids flaky preflight handling and makes allowed origins obvious in production.
+  // Set CORS_ORIGINS=https://bookingmanager.online,https://www.bookingmanager.online (no trailing slashes).
+  // If unset, Nest reflects the request origin (same as previous { cors: true } behavior).
+  app.enableCors({
+    origin: parseCorsOrigins(),
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Requested-With',
+    ],
+    credentials: true,
+    maxAge: 86_400,
+  });
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
