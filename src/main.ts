@@ -4,14 +4,53 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SeedService } from './seed/seed.service';
 
-function parseCorsOrigins(): string[] | true {
+type OriginFn = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void,
+) => void;
+
+/**
+ * When `CORS_ORIGINS` is unset → reflect any origin (dev-friendly).
+ * When set → only those origins, unless `CORS_ALLOW_LOCALHOST` allows
+ * `http://localhost:*` and `http://127.0.0.1:*` (for Vite on :5173 hitting prod API).
+ */
+function resolveCorsOrigin(): boolean | string[] | OriginFn {
   const raw = process.env.CORS_ORIGINS?.trim();
   if (!raw) return true;
+
   const list = raw
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
-  return list.length ? list : true;
+  if (!list.length) return true;
+
+  const allowLocalhost =
+    process.env.CORS_ALLOW_LOCALHOST === '1' ||
+    process.env.CORS_ALLOW_LOCALHOST === 'true';
+
+  if (!allowLocalhost) return list;
+
+  const isLocalDevOrigin = (origin: string) =>
+    /^http:\/\/localhost(?::\d+)?$/.test(origin) ||
+    /^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(origin);
+
+  const originFn: OriginFn = (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (list.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    if (isLocalDevOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  };
+
+  return originFn;
 }
 
 async function bootstrap() {
@@ -19,9 +58,10 @@ async function bootstrap() {
 
   // Explicit CORS avoids flaky preflight handling and makes allowed origins obvious in production.
   // Set CORS_ORIGINS=https://bookingmanager.online,https://www.bookingmanager.online (no trailing slashes).
-  // If unset, Nest reflects the request origin (same as previous { cors: true } behavior).
+  // Local Vite (http://localhost:5173) → prod API: add CORS_ALLOW_LOCALHOST=true on the API server.
+  // If CORS_ORIGINS is unset, Nest reflects the request origin (same as old { cors: true }).
   app.enableCors({
-    origin: parseCorsOrigins(),
+    origin: resolveCorsOrigin(),
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
