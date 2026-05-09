@@ -24,11 +24,17 @@ export class Utf8mb4Charset1748000000000 implements MigrationInterface {
       'users',
     ];
 
-    for (const table of tables) {
-      const tableName = table.replace(/`/g, '``');
-      await queryRunner.query(
-        `ALTER TABLE \`${tableName}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
-      );
+    // CONVERT touches FK columns; MySQL rejects that unless checks are off temporarily.
+    await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+    try {
+      for (const table of tables) {
+        const tableName = table.replace(/`/g, '``');
+        await queryRunner.query(
+          `ALTER TABLE \`${tableName}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+        );
+      }
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
     }
   }
 
