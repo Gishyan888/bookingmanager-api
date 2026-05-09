@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'Jane Doe' })
@@ -19,4 +25,16 @@ export class UpdateProfileDto {
   @IsString()
   @MinLength(6)
   password?: string;
+
+  @ApiPropertyOptional({ enum: ['hy', 'en', 'ru'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['hy', 'en', 'ru'])
+  preferredLanguage?: string;
+
+  @ApiPropertyOptional({ enum: ['light', 'dark', 'system'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['light', 'dark', 'system'])
+  preferredTheme?: string;
 }

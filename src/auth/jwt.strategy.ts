@@ -34,7 +34,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<AuthUser> {
     const user = await this.users.findOne({
       where: { id: payload.sub },
-      select: ['id', 'email', 'role', 'name', 'assignedHotelId', 'isActive'],
+      select: [
+        'id',
+        'email',
+        'role',
+        'name',
+        'assignedHotelId',
+        'isActive',
+        'preferredLanguage',
+        'preferredTheme',
+      ],
     });
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid or inactive user');
@@ -62,6 +71,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       name: user.name,
       assignedHotelId: user.assignedHotelId,
+      preferredLanguage: user.preferredLanguage,
+      preferredTheme: user.preferredTheme,
     };
   }
 }

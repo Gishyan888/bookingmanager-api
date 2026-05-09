@@ -7,6 +7,8 @@ export interface AuthUser {
   role: UserRole;
   name: string;
   assignedHotelId: string | null;
+  preferredLanguage: string;
+  preferredTheme: string;
 }
 
 export const CurrentUser = createParamDecorator(

@@ -31,6 +31,12 @@ export class User {
   @Column({ type: 'varchar', length: 30, nullable: true })
   phone: string | null;
 
+  @Column({ type: 'varchar', length: 8, default: 'hy' })
+  preferredLanguage: string;
+
+  @Column({ type: 'varchar', length: 10, default: 'light' })
+  preferredTheme: string;
+
   /**
    * Account on/off switch.
    *

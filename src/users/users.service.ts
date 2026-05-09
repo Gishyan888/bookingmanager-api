@@ -120,6 +120,12 @@ export class UsersService {
     if (dto.name !== undefined) user.name = dto.name.trim();
     if (dto.phone !== undefined) user.phone = dto.phone ?? null;
     if (dto.password) user.password = await bcrypt.hash(dto.password, 10);
+    if (dto.preferredLanguage !== undefined) {
+      user.preferredLanguage = dto.preferredLanguage;
+    }
+    if (dto.preferredTheme !== undefined) {
+      user.preferredTheme = dto.preferredTheme;
+    }
     return this.users.save(user);
   }
 

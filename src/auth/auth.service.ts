@@ -32,6 +32,8 @@ export interface AuthResponse {
     email: string;
     role: UserRole;
     assignedHotelId: string | null;
+    preferredLanguage: string;
+    preferredTheme: string;
   };
 }
 
@@ -80,6 +82,8 @@ export class AuthService {
       phone: dto.phone ?? null,
       role,
       isActive: false,
+      preferredLanguage: 'hy',
+      preferredTheme: 'light',
     });
     const saved = await this.users.save(user);
     const { otp } = await this.issueOtp(saved, 'verify_email');
@@ -219,6 +223,8 @@ export class AuthService {
         email: user.email,
         role: user.role,
         assignedHotelId: user.assignedHotelId,
+        preferredLanguage: user.preferredLanguage,
+        preferredTheme: user.preferredTheme,
       },
     };
   }
