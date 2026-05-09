@@ -25,6 +25,8 @@ export const typeOrmDataSourceOptions: DataSourceOptions = {
   entities: [User, Hotel, Room, Customer, Booking, Notification, AuthOtp],
   migrations: isTsRuntime ? ['src/migrations/*.ts'] : ['dist/migrations/*.js'],
   synchronize: false,
+  /** Allow per-migration `transaction = false` (required for utf8mb4 DDL that drops/recreates FKs). */
+  migrationsTransactionMode: 'each',
 };
 
 export default new DataSource(typeOrmDataSourceOptions);
