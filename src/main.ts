@@ -13,6 +13,10 @@ type OriginFn = (
  * When `CORS_ORIGINS` is unset → reflect any origin (dev-friendly).
  * When set → only those origins, unless `CORS_ALLOW_LOCALHOST` allows
  * `http://localhost:*` and `http://127.0.0.1:*` (for Vite on :5173 hitting prod API).
+ *
+ * Note: `CORS_ORIGINS=*` is normalized to "reflect request origin".
+ * You cannot combine `Allow-Origin: *` with `credentials: true` (we set that below);
+ * browsers reject it, so `*` would still look like a "CORS error".
  */
 function resolveCorsOrigin(): boolean | string[] | OriginFn {
   const raw = process.env.CORS_ORIGINS?.trim();
@@ -23,6 +27,10 @@ function resolveCorsOrigin(): boolean | string[] | OriginFn {
     .map((o) => o.trim())
     .filter(Boolean);
   if (!list.length) return true;
+
+  if (list.length === 1 && list[0] === '*') {
+    return true;
+  }
 
   const allowLocalhost =
     process.env.CORS_ALLOW_LOCALHOST === '1' ||
@@ -72,7 +80,6 @@ async function bootstrap() {
     credentials: true,
     maxAge: 86_400,
   });
-
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
