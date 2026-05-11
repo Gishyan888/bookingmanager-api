@@ -60,23 +60,8 @@ async function bootstrap() {
   // Set CORS_ORIGINS=https://bookingmanager.online,https://www.bookingmanager.online (no trailing slashes).
   // Local Vite (http://localhost:5173) → prod API: add CORS_ALLOW_LOCALHOST=true on the API server.
   // If CORS_ORIGINS is unset, Nest reflects the request origin (same as old { cors: true }).
-  // app.enableCors({
-  //   origin: resolveCorsOrigin(),
-  //   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  //   allowedHeaders: [
-  //     'Content-Type',
-  //     'Authorization',
-  //     'Accept',
-  //     'X-Requested-With',
-  //   ],
-  //   credentials: true,
-  //   maxAge: 86_400,
-  // });
   app.enableCors({
-    origin: [
-      'https://bookingmanager.online',
-      'https://www.bookingmanager.online',
-    ],
+    origin: resolveCorsOrigin(),
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -84,9 +69,10 @@ async function bootstrap() {
       'Accept',
       'X-Requested-With',
     ],
-    credentials: false,
-    maxAge: 86400,
+    credentials: true,
+    maxAge: 86_400,
   });
+
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
